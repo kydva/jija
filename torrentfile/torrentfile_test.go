@@ -28,7 +28,7 @@ func TestOpen(t *testing.T) {
 		t.Fatalf("PieceLength %d != %d", data.PieceLength, expected.PieceLength)
 	}
 
-	fifthPieceHash := hash{46, 0, 15, 167, 232, 87, 89, 199, 244, 194, 84, 212, 217, 195, 62, 244, 129, 228, 89, 167}
+	fifthPieceHash := [20]byte{46, 0, 15, 167, 232, 87, 89, 199, 244, 194, 84, 212, 217, 195, 62, 244, 129, 228, 89, 167}
 
 	if data.Pieces[5] != fifthPieceHash {
 		t.Fatalf("5th piece hash %x != %x", data.Pieces[5], fifthPieceHash)

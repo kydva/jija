@@ -8,10 +8,6 @@ import (
 	"github.com/jackpal/bencode-go"
 )
 
-const HASH_LENGTH = 20
-
-type hash [HASH_LENGTH]byte
-
 type rawInfo struct {
 	Pieces      string
 	PieceLength int `bencode:"piece length"`
@@ -26,8 +22,8 @@ type rawTorrentFile struct {
 
 type TorrentFile struct {
 	Announce    string
-	InfoHash    hash
-	Pieces      []hash
+	InfoHash    [20]byte
+	Pieces      [][20]byte
 	PieceLength int
 	Length      int
 	Name        string
@@ -54,7 +50,7 @@ func decode(file *os.File) (rawTorrentFile, error) {
 	return data, nil
 }
 
-func (info *rawInfo) hash() (hash hash, err error) {
+func (info *rawInfo) hash() (hash [20]byte, err error) {
 	var buf bytes.Buffer
 	err = bencode.Marshal(&buf, *info)
 	if err != nil {
@@ -64,14 +60,15 @@ func (info *rawInfo) hash() (hash hash, err error) {
 	return hash, nil
 }
 
-func (info *rawInfo) splitPieces() ([]hash, error) {
+func (info *rawInfo) splitPieces() ([][20]byte, error) {
+	const hashLen = 20
 	buf := []byte(info.Pieces)
-	piecesCount := len(buf) / HASH_LENGTH
-	pieces := make([]hash, piecesCount)
+	piecesCount := len(buf) / hashLen
+	pieces := make([][20]byte, piecesCount)
 
 	for i := 0; i < piecesCount; i++ {
-		start := i * HASH_LENGTH
-		end := (i + 1) * HASH_LENGTH
+		start := i * hashLen
+		end := (i + 1) * hashLen
 		copy(pieces[i][:], buf[start:end])
 	}
 	return pieces, nil
