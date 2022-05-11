@@ -1,30 +1,36 @@
 package torrentfile
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestOpen(t *testing.T) {
-	file, err := Open("testdata/file.torrent")
+	data, err := Open("testdata/file.torrent")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	expected := TorrentFile{
-		Announce: "udp://tracker.openbittorrent.com:80",
-		Info: TorrentInfo{
-			PieceLength: 65536,
-			Length:      20,
-		},
+		Announce:    "udp://tracker.opentrackr.org:1337/announce",
+		PieceLength: 262144,
+		Length:      363548672,
 	}
 
-	if file.Announce != expected.Announce {
-		t.Fatalf("Announce %s != %s", file.Announce, expected.Announce)
+	if data.Announce != expected.Announce {
+		t.Fatalf("Announce %s != %s", data.Announce, expected.Announce)
 	}
 
-	if file.Info.Length != expected.Info.Length {
-		t.Fatalf("Info.Length %d != %d", file.Info.Length, expected.Info.Length)
+	if data.Length != expected.Length {
+		t.Fatalf("Length %d != %d", data.Length, expected.Length)
 	}
 
-	if file.Info.PieceLength != expected.Info.PieceLength {
-		t.Fatalf("Info.PieceLength %d != %d", file.Info.PieceLength, expected.Info.PieceLength)
+	if data.PieceLength != expected.PieceLength {
+		t.Fatalf("PieceLength %d != %d", data.PieceLength, expected.PieceLength)
+	}
+
+	fifthPieceHash := hash{46, 0, 15, 167, 232, 87, 89, 199, 244, 194, 84, 212, 217, 195, 62, 244, 129, 228, 89, 167}
+
+	if data.Pieces[5] != fifthPieceHash {
+		t.Fatalf("5th piece hash %x != %x", data.Pieces[5], fifthPieceHash)
 	}
 }
