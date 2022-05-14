@@ -8,25 +8,16 @@ import (
 	"github.com/jackpal/bencode-go"
 )
 
-type rawInfo struct {
+type TorrentInfo struct {
 	Pieces      string
 	PieceLength int `bencode:"piece length"`
 	Length      int
 	Name        string
 }
 
-type rawTorrentFile struct {
-	Announce string
-	Info     rawInfo
-}
-
 type TorrentFile struct {
-	Announce    string
-	InfoHash    [20]byte
-	Pieces      [][20]byte
-	PieceLength int
-	Length      int
-	Name        string
+	Announce string
+	Info     TorrentInfo
 }
 
 func Open(path string) (TorrentFile, error) {
@@ -34,33 +25,27 @@ func Open(path string) (TorrentFile, error) {
 	if err != nil {
 		return TorrentFile{}, err
 	}
-	decoded, err := decode(file)
+
+	decoded := TorrentFile{}
+	err = bencode.Unmarshal(file, &decoded)
 	if err != nil {
-		return TorrentFile{}, err
+		return decoded, err
 	}
-	return decoded.toTorrentFile()
+
+	return decoded, nil
 }
 
-func decode(file *os.File) (rawTorrentFile, error) {
-	data := rawTorrentFile{}
-	err := bencode.Unmarshal(file, &data)
-	if err != nil {
-		return data, err
-	}
-	return data, nil
-}
-
-func (info *rawInfo) hash() (hash [20]byte, err error) {
+func (info *TorrentInfo) Hash() (string, error) {
 	var buf bytes.Buffer
-	err = bencode.Marshal(&buf, *info)
+	err := bencode.Marshal(&buf, *info)
 	if err != nil {
-		return [20]byte{}, err
+		return "", err
 	}
-	hash = sha1.Sum(buf.Bytes())
-	return hash, nil
+	hash := sha1.Sum(buf.Bytes())
+	return string(hash[:]), nil
 }
 
-func (info *rawInfo) splitPieces() ([][20]byte, error) {
+func (info *TorrentInfo) SplitPieces() ([][20]byte, error) {
 	const hashLen = 20
 	buf := []byte(info.Pieces)
 	piecesCount := len(buf) / hashLen
@@ -72,27 +57,4 @@ func (info *rawInfo) splitPieces() ([][20]byte, error) {
 		copy(pieces[i][:], buf[start:end])
 	}
 	return pieces, nil
-}
-
-func (file *rawTorrentFile) toTorrentFile() (TorrentFile, error) {
-	infoHash, err := file.Info.hash()
-	if err != nil {
-		return TorrentFile{}, err
-	}
-
-	pieces, err := file.Info.splitPieces()
-	if err != nil {
-		return TorrentFile{}, err
-	}
-
-	torrentFile := TorrentFile{
-		Announce:    file.Announce,
-		InfoHash:    infoHash,
-		Pieces:      pieces,
-		PieceLength: file.Info.PieceLength,
-		Length:      file.Info.Length,
-		Name:        file.Info.Name,
-	}
-
-	return torrentFile, nil
 }
