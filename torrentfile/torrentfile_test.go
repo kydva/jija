@@ -3,16 +3,17 @@ package torrentfile
 import "testing"
 
 func TestOpen(t *testing.T) {
-	file, err := Open("testdata/file.torrent")
+	file, err := Open("../testfile.torrent")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	expected := TorrentFile{
-		Announce: "udp://tracker.opentrackr.org:1337/announce",
+		Announce: "http://tracker.archlinux.org:6969/announce",
 		Info: TorrentInfo{
-			PieceLength: 262144,
-			Length:      363548672,
+			Name:        "archlinux-2019.12.01-x86_64.iso",
+			PieceLength: 524288,
+			Length:      670040064,
 		},
 	}
 
