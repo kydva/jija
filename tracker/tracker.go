@@ -1,36 +1,33 @@
 package tracker
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/jackpal/bencode-go"
 	"github.com/kydva/jija/peers"
 	"github.com/kydva/jija/torrentfile"
+	"github.com/zeebo/bencode"
 )
 
 type TrackerResponse struct {
-	Interval string
-	Peers    string
+	Interval int    `bencode:"interval"`
+	Peers    string `bencode:"peers"`
 }
 
-func buildTrackerURL(tf *torrentfile.TorrentFile, peerID string) (string, error) {
-	trackerUrl, err := url.Parse(tf.Announce)
-	if err != nil {
-		return "", err
-	}
-
-	infohash, err := tf.Info.Hash()
+func buildRequestURL(tf *torrentfile.TorrentFile, announce string, peerID [20]byte) (string, error) {
+	trackerUrl, err := url.Parse(announce)
 	if err != nil {
 		return "", err
 	}
 
 	query := url.Values{}
 
-	query.Set("info_hash", infohash)
-	query.Set("peer_id", peerID)
+	query.Set("info_hash", string(tf.InfoHash[:]))
+	query.Set("peer_id", string(peerID[:]))
 	query.Set("port", "1337")
 	query.Set("uploaded", "0")
 	query.Set("downloaded", "0")
@@ -42,8 +39,14 @@ func buildTrackerURL(tf *torrentfile.TorrentFile, peerID string) (string, error)
 	return trackerUrl.String(), nil
 }
 
-func RequestPeers(tf *torrentfile.TorrentFile, peerID string) ([]peers.Peer, error) {
-	url, err := buildTrackerURL(tf, peerID)
+func RequestPeers(tf *torrentfile.TorrentFile, peerID [20]byte) ([]peers.Peer, error) {
+	announce, err := findTracker(tf)
+
+	if err != nil {
+		return nil, err
+	}
+
+	url, err := buildRequestURL(tf, announce, peerID)
 	if err != nil {
 		return nil, err
 	}
@@ -54,13 +57,46 @@ func RequestPeers(tf *torrentfile.TorrentFile, peerID string) ([]peers.Peer, err
 	if err != nil {
 		return nil, err
 	}
+
 	defer rawResponse.Body.Close()
 
 	res := TrackerResponse{}
-	err = bencode.Unmarshal(rawResponse.Body, &res)
+
+	reader := bencode.NewDecoder(rawResponse.Body)
+
+	err = reader.Decode(&res)
+
 	if err != nil {
 		return nil, err
 	}
 
 	return peers.Unmarshal([]byte(res.Peers))
+}
+
+func findTracker(tf *torrentfile.TorrentFile) (string, error) {
+	fmt.Println("Searching available tracker...")
+
+	client := &http.Client{Timeout: 4 * time.Second}
+
+	for _, announces := range tf.AnnounceList {
+		for _, announce := range announces {
+			if !strings.HasPrefix(announce, "http") {
+				continue
+			}
+
+			res, err := client.Get(announce)
+
+			if err != nil {
+				continue
+			}
+
+			defer res.Body.Close()
+
+			fmt.Println("Tracker is found")
+
+			return announce, nil
+		}
+	}
+
+	return "", fmt.Errorf("there is no available trackers")
 }

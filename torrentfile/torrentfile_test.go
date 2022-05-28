@@ -9,16 +9,11 @@ func TestOpen(t *testing.T) {
 	}
 
 	expected := TorrentFile{
-		Announce: "http://tracker.archlinux.org:6969/announce",
 		Info: TorrentInfo{
-			Name:        "archlinux-2019.12.01-x86_64.iso",
-			PieceLength: 524288,
-			Length:      670040064,
+			Name:        "Harry_Potter_and_the_Prisoner_of_Azkaban_2004.mkv",
+			PieceLength: 1048576,
+			Length:      576131414,
 		},
-	}
-
-	if file.Announce != expected.Announce {
-		t.Fatalf("Announce %s != %s", file.Announce, expected.Announce)
 	}
 
 	if file.Info.Length != expected.Info.Length {
@@ -30,8 +25,3 @@ func TestOpen(t *testing.T) {
 	}
 }
 
-// fifthPieceHash := [20]byte{46, 0, 15, 167, 232, 87, 89, 199, 244, 194, 84, 212, 217, 195, 62, 244, 129, 228, 89, 167}
-
-// if data.Pieces[5] != fifthPieceHash {
-// 	t.Fatalf("5th piece hash %x != %x", data.Pieces[5], fifthPieceHash)
-// }

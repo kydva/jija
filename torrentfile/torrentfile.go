@@ -3,21 +3,23 @@ package torrentfile
 import (
 	"bytes"
 	"crypto/sha1"
+	"fmt"
 	"os"
 
-	"github.com/jackpal/bencode-go"
+	"github.com/zeebo/bencode"
 )
 
 type TorrentInfo struct {
-	Pieces      string
-	PieceLength int `bencode:"piece length"`
-	Length      int
-	Name        string
+	Pieces      string `bencode:"pieces"`
+	PieceLength int    `bencode:"piece length"`
+	Length      int    `bencode:"length"`
+	Name        string `bencode:"name"`
 }
 
 type TorrentFile struct {
-	Announce string
-	Info     TorrentInfo
+	AnnounceList [][]string  `bencode:"announce-list"`
+	Info         TorrentInfo `bencode:"info"`
+	InfoHash     [20]byte
 }
 
 func Open(path string) (TorrentFile, error) {
@@ -26,28 +28,36 @@ func Open(path string) (TorrentFile, error) {
 		return TorrentFile{}, err
 	}
 
-	decoded := TorrentFile{}
-	err = bencode.Unmarshal(file, &decoded)
+	tf := TorrentFile{}
+
+	decoder := bencode.NewDecoder(file)
+
+	decoder.Decode(&tf)
+
+	tf.InfoHash, err = tf.Info.hash()
 	if err != nil {
-		return decoded, err
+		return tf, err
 	}
 
-	return decoded, nil
+	fmt.Println(tf.AnnounceList)
+
+	return tf, nil
 }
 
-func (info *TorrentInfo) Hash() (string, error) {
+func (info *TorrentInfo) hash() ([20]byte, error) {
 	var buf bytes.Buffer
-	err := bencode.Marshal(&buf, *info)
-	if err != nil {
-		return "", err
-	}
+
+	encoder := bencode.NewEncoder(&buf)
+
+	encoder.Encode(*info)
+
 	hash := sha1.Sum(buf.Bytes())
-	return string(hash[:]), nil
+	return hash, nil
 }
 
-func (info *TorrentInfo) SplitPieces() ([][20]byte, error) {
+func (tf *TorrentFile) SplitPieces() ([][20]byte, error) {
 	const hashLen = 20
-	buf := []byte(info.Pieces)
+	buf := []byte(tf.Info.Pieces)
 	piecesCount := len(buf) / hashLen
 	pieces := make([][20]byte, piecesCount)
 
@@ -57,4 +67,18 @@ func (info *TorrentInfo) SplitPieces() ([][20]byte, error) {
 		copy(pieces[i][:], buf[start:end])
 	}
 	return pieces, nil
+}
+
+func (tf *TorrentFile) CalculateBoundsForPiece(index int) (begin int, end int) {
+	begin = index * tf.Info.PieceLength
+	end = begin + tf.Info.PieceLength
+	if end > tf.Info.Length {
+		end = tf.Info.Length
+	}
+	return begin, end
+}
+
+func (tf *TorrentFile) CalculatePieceSize(index int) int {
+	begin, end := tf.CalculateBoundsForPiece(index)
+	return end - begin
 }
