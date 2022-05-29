@@ -3,7 +3,6 @@ package torrentfile
 import (
 	"bytes"
 	"crypto/sha1"
-	"fmt"
 	"os"
 
 	"github.com/zeebo/bencode"
@@ -38,8 +37,6 @@ func Open(path string) (TorrentFile, error) {
 	if err != nil {
 		return tf, err
 	}
-
-	fmt.Println(tf.AnnounceList)
 
 	return tf, nil
 }

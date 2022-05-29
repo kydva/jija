@@ -18,8 +18,6 @@ import (
 
 const MaxBlockSize = 16384 // the largest number of bytes a request can ask for
 
-const MaxBacklog = 5 // the largest number of unfulfilled requests a client can make
-
 type piece struct {
 	index  int
 	hash   [20]byte
@@ -37,7 +35,6 @@ type pieceProgress struct {
 	buf        []byte
 	downloaded int
 	requested  int
-	backlog    int
 }
 
 func handleMessage(state *pieceProgress) error {
@@ -56,19 +53,12 @@ func handleMessage(state *pieceProgress) error {
 		state.conn.Choked = false
 	case message.MsgChoke:
 		state.conn.Choked = true
-	case message.MsgHave:
-		index, err := message.ParseHave(msg)
-		if err != nil {
-			return err
-		}
-		state.conn.Bitfield.SetPiece(index)
 	case message.MsgPiece:
 		n, err := message.ParsePiece(state.index, state.buf, msg)
 		if err != nil {
 			return err
 		}
 		state.downloaded += n
-		state.backlog--
 	}
 	return nil
 }
@@ -85,7 +75,7 @@ func downloadPiece(c *connection.Connection, piece *piece) ([]byte, error) {
 
 	for state.downloaded < piece.length {
 		if !state.conn.Choked {
-			for state.backlog < MaxBacklog && state.requested < piece.length {
+			for state.requested < piece.length {
 				blockSize := MaxBlockSize
 
 				// Last block can be shorter than others
@@ -97,8 +87,6 @@ func downloadPiece(c *connection.Connection, piece *piece) ([]byte, error) {
 				if err != nil {
 					return nil, err
 				}
-
-				state.backlog++
 				state.requested += blockSize
 			}
 		}

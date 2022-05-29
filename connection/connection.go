@@ -110,12 +110,6 @@ func (c *Connection) SendInterested() error {
 	return err
 }
 
-func (c *Connection) SendNotInterested() error {
-	msg := message.Message{ID: message.MsgNotInterested}
-	_, err := c.Write(msg.Serialize())
-	return err
-}
-
 func (c *Connection) SendUnchoke() error {
 	msg := message.Message{ID: message.MsgUnchoke}
 	_, err := c.Write(msg.Serialize())
